@@ -50,12 +50,16 @@ from .backoff import ExponentialBackoff
 from .gateway import *
 from .errors import ClientException, ConnectionClosed
 from .player import AudioPlayer, AudioSource
+from .reader import AudioReader, AudioSink
+from .utils import Bidict
+from .speakingstate import SpeakingState
 
 try:
     import nacl.secret
     has_nacl = True
 except ImportError:
     has_nacl = False
+
 
 log = logging.getLogger(__name__)
 
@@ -102,15 +106,19 @@ class VoiceClient:
         self._handshaking = False
         self._handshake_check = asyncio.Lock()
         self._handshake_complete = asyncio.Event()
+        # this will be used in the AudioReader thread
+        self._connecting = threading.Condition()
 
-        self.mode = None
+        self._mode = None
         self._connections = 0
         self.sequence = 0
         self.timestamp = 0
+        self._nonce = 0
         self._runner = None
         self._player = None
+        self._reader = None
         self.encoder = None
-        self._lite_nonce = 0
+        self._ssrcs = Bidict()
 
     warn_nacl = not has_nacl
     supported_modes = (
@@ -320,9 +328,59 @@ class VoiceClient:
         """Indicates if the voice client is connected to voice."""
         return self._connected.is_set()
 
+    async def speak(self, state):
+        """|coro|
+
+        Sets the bot's speaking state.
+        [maybe note about how the bot does this while playing audio so
+        you probably dont need to call this]
+
+        Parameters
+        -----------
+        state: :class:`SpeakingState`
+            The state to set the bot to.
+        """
+
+        if not isinstance(state, SpeakingState):
+            raise TypeError("state must be a SpeakingState not %s" % state.__class__.__name__)
+
+        await self.ws.speak(state)
+
     # audio related
 
-    def _get_voice_packet(self, data):
+    def _add_ssrc(self, user_id, ssrc):
+        """Adds a user_id<->ssrc mapping.
+
+        Technically these can be added in either order, but using user_id as the key
+        is preferable since, should we be updating a mapping instead of adding one, we
+        want to update the ssrc for the user_id, not the other way around.
+
+        I think?  Did I write it to work like that?
+        """
+        self._ssrcs[user_id] = ssrc
+
+    def _remove_ssrc(self, *, ssrc=None, user_id=None):
+        """Removes a user_id<->ssrc mapping.  Either one can be used as the key."""
+
+        thing = ssrc or user_id
+        if not thing:
+            raise TypeError("must provide at least one argument")
+
+        other_thing = self._ssrcs.pop(thing, None)
+        if self._reader:
+            self._reader._ssrc_removed(ssrc or other_thing)
+
+    def _get_ssrc_mapping(self, *, ssrc=None, user_id=None):
+        """Returns a (ssrc, user_id) tuple from the given input.  At least one argument is required."""
+
+        thing = ssrc or user_id
+        if not thing:
+            raise TypeError("must provide at least one argument")
+
+        other_thing = self._ssrcs.get(thing)
+        return ssrc or other_thing, user_id or other_thing
+
+    def _encrypt_voice_packet(self, data):
         header = bytearray(12)
 
         # Formulate rtp header
@@ -332,7 +390,7 @@ class VoiceClient:
         struct.pack_into('>I', header, 4, self.timestamp)
         struct.pack_into('>I', header, 8, self.ssrc)
 
-        encrypt_packet = getattr(self, '_encrypt_' + self.mode)
+        encrypt_packet = getattr(self, '_encrypt_' + self._mode)
         return encrypt_packet(header, data)
 
     def _encrypt_xsalsa20_poly1305(self, header, data):
@@ -352,8 +410,8 @@ class VoiceClient:
         box = nacl.secret.SecretBox(bytes(self.secret_key))
         nonce = bytearray(24)
 
-        nonce[:4] = struct.pack('>I', self._lite_nonce)
-        self.checked_add('_lite_nonce', 1, 4294967295)
+        nonce[:4] = struct.pack('>I', self._nonce)
+        self.checked_add('_nonce', 1, 4294967295)
 
         return header + box.encrypt(bytes(data), bytes(nonce)).ciphertext + nonce[:4]
 
@@ -409,7 +467,7 @@ class VoiceClient:
         """Indicates if we're playing audio, but if we're paused."""
         return self._player is not None and self._player.is_paused()
 
-    def stop(self):
+    def stop_playing(self):
         """Stops playing audio."""
         if self._player:
             self._player.stop()
@@ -443,6 +501,55 @@ class VoiceClient:
 
         self._player._set_source(value)
 
+    # receive api related
+
+    def listen(self, sink):
+        """Receives audio into a :class:`AudioSink`. TODO: wording
+
+        TODO: the rest of it
+        """
+
+        if not self.is_connected():
+            raise ClientException('Not connected to voice.')
+
+        if not isinstance(sink, AudioSink):
+            raise TypeError('sink must be an AudioSink not {0.__class__.__name__}'.format(sink))
+
+        if self.is_listening():
+            raise ClientException('Already receiving audio.')
+
+        self._reader = AudioReader(sink, self)
+        self._reader.start()
+
+    def is_listening(self):
+        """Indicates if we're currently receiving audio."""
+        return self._reader is not None and self._reader.is_listening()
+
+    def stop_listening(self):
+        """Stops receiving audio."""
+        if self._reader:
+            self._reader.stop()
+            self._reader = None
+
+    @property
+    def sink(self):
+        return self._reader.sink if self._reader else None
+
+    @sink.setter
+    def sink(self, value):
+        if not isinstance(value, AudioSink):
+            raise TypeError('expected AudioSink not {0.__class__.__name__}.'.format(value))
+
+        if self._reader is None:
+            raise ValueError('Not receiving anything.')
+
+        self._reader._set_sink(sink)
+
+    def stop(self):
+        """Stops playing and receiving audio."""
+        self.stop_playing()
+        self.stop_listening()
+
     def send_audio_packet(self, data, *, encode=True):
         """Sends an audio packet composed of the data.
 
@@ -468,7 +575,7 @@ class VoiceClient:
             encoded_data = self.encoder.encode(data, self.encoder.SAMPLES_PER_FRAME)
         else:
             encoded_data = data
-        packet = self._get_voice_packet(encoded_data)
+        packet = self._encrypt_voice_packet(encoded_data)
         try:
             self.socket.sendto(packet, (self.endpoint_ip, self.voice_port))
         except BlockingIOError:

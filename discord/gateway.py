@@ -40,7 +40,8 @@ import websockets
 
 from . import utils
 from .activity import BaseActivity
-from .enums import SpeakingState
+from .activity import _ActivityTag
+from .speakingstate import SpeakingState
 from .errors import ConnectionClosed, InvalidArgument
 
 log = logging.getLogger(__name__)
@@ -274,6 +275,9 @@ class DiscordWebSocket(websockets.client.WebSocketClientProtocol):
         else:
             return ws
 
+    def _dispatch(self, *args):
+        self._connection._state.dispatch(*args)
+
     def wait_for(self, event, predicate, result=None):
         """Waits for a DISPATCH'd event that meets the predicate.
 
@@ -434,6 +438,34 @@ class DiscordWebSocket(websockets.client.WebSocketClientProtocol):
             log.info('Shard ID %s has successfully RESUMED session %s under trace %s.',
                      self.shard_id, self.session_id, ', '.join(trace))
 
+        elif event == 'VOICE_STATE_UPDATE':
+            channel_id = data['channel_id']
+            guild_id = int(data['guild_id'])
+
+            # TODO: better voice call support
+            # TODO: Reseting decoders doesn't pause them.  Maybe I should just kill them?
+            vc = self._connection._get_voice_client(guild_id)
+            if vc:
+                user_id = int(data['user_id'])
+
+                if channel_id and int(channel_id) != vc.channel.id and vc._reader:
+                    # someone moved channels
+                    if self._connection.user.id == user_id:
+                        # we moved channels
+                        # print("Resetting all decoders")
+                        vc._reader._reset_decoders()
+
+                    # TODO: figure out how to check if either old/new channel
+                    #       is ours so we don't go around resetting decoders
+                    #       for irrelevant channel moving
+
+                    else:
+                        # someone else moved channels
+                        # print(f"ws: Attempting to reset decoder for {user_id}")
+                        ssrc, _ = vc._get_ssrc_mapping(user_id=data['user_id'])
+                        vc._reader._reset_decoders(ssrc)
+
+        parser = 'parse_' + event.lower()
         try:
             func = self._discord_parsers[event]
         except KeyError:
@@ -696,7 +728,7 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
 
         await self.send_as_json(payload)
 
-    async def speak(self, state=SpeakingState.voice):
+    async def speak(self, state=SpeakingState.active()):
         payload = {
             'op': self.SPEAKING,
             'd': {
@@ -722,10 +754,26 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
         elif op == self.SESSION_DESCRIPTION:
             self._connection.mode = data['mode']
             await self.load_secret_key(data)
+            await self._do_hacks()
         elif op == self.HELLO:
             interval = data['heartbeat_interval'] / 1000.0
             self._keep_alive = VoiceKeepAliveHandler(ws=self, interval=min(interval, 5.0))
             self._keep_alive.start()
+        elif op == self.SPEAKING:
+            user_id = int(data['user_id'])
+            vc = self._connection
+            vc._add_ssrc(user_id, data['ssrc'])
+
+            if vc.guild:
+                user = vc.guild.get_member(user_id)
+            else:
+                user = vc._state.get_user(user_id)
+
+            vc._state.dispatch('speaking_update', user, SpeakingState(data['speaking']))
+        elif op == self.CLIENT_CONNECT:
+            self._connection._add_ssrc(int(data['user_id']), data['audio_ssrc'])
+        elif op == self.CLIENT_DISCONNECT:
+            self._connection._remove_ssrc(user_id=int(data['user_id']))
 
     async def initial_connection(self, data):
         state = self._connection
@@ -775,7 +823,13 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
     async def load_secret_key(self, data):
         log.info('received secret key for voice connection')
         self._connection.secret_key = data.get('secret_key')
+
+    async def _do_hacks(self):
         await self.speak()
+
+        await asyncio.sleep(0.5)
+
+        self._connection.send_audio_packet(b'\xF8\xFF\xFE', encode=False)
         await self.speak(False)
 
     async def poll_event(self):
