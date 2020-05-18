@@ -43,7 +43,7 @@ from .errors import DiscordException
 import websockets
 
 from . import utils
-from .activity import _ActivityTag
+from .activity import CustomActivity
 from .speakingstate import SpeakingState
 from .errors import ConnectionClosed, InvalidArgument
 
