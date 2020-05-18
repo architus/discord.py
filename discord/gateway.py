@@ -40,7 +40,6 @@ import websockets
 
 from . import utils
 from .activity import BaseActivity
-from .activity import _ActivityTag
 from .speakingstate import SpeakingState
 from .errors import ConnectionClosed, InvalidArgument
 
