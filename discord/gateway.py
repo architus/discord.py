@@ -465,6 +465,7 @@ class DiscordWebSocket(websockets.client.WebSocketClientProtocol):
                         vc._reader._reset_decoders(ssrc)
 
         parser = 'parse_' + event.lower()
+
         try:
             func = self._discord_parsers[event]
         except KeyError:
@@ -751,7 +752,7 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
             log.info('Voice RESUME failed.')
             await self.identify()
         elif op == self.SESSION_DESCRIPTION:
-            self._connection.mode = data['mode']
+            self._connection._mode = data['mode']
             await self.load_secret_key(data)
             await self._do_hacks()
         elif op == self.HELLO:
@@ -824,11 +825,22 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
         self._connection.secret_key = data.get('secret_key')
 
     async def _do_hacks(self):
+        # Everything below this is a hack because discord keeps breaking things
+
+        # hack #1
+        # speaking needs to be set otherwise reconnecting makes you forget that the
+        # bot is playing audio and you wont hear it until the bot sets speaking again
         await self.speak()
 
+        # hack #3:
+        # you need to wait for some indeterminate amount of time before sending silence
         await asyncio.sleep(0.5)
 
+        # hack #2:
+        # sending a silence packet is required to be able to read from the socket
         self._connection.send_audio_packet(b'\xF8\xFF\xFE', encode=False)
+
+        # just so we don't have the speaking circle when we're not actually speaking
         await self.speak(False)
 
     async def poll_event(self):
