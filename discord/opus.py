@@ -40,7 +40,7 @@ import threading
 import zlib
 
 from collections import deque
-from bisect import insort
+import bisect
 
 from .errors import DiscordException
 import websockets
