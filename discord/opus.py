@@ -998,7 +998,7 @@ class BufferedDecoder(threading.Thread):
             remaining = next_time - time.perf_counter()
 
             if remaining >= 0:
-                insort(self.queue, (next_time, decoder))
+                bisect.insort(self.queue, (next_time, decoder))
                 time.sleep(max(0.002, remaining/2)) # sleep accuracy tm
                 continue
 
