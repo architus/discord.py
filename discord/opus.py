@@ -38,7 +38,9 @@ import sys
 import time
 import threading
 import zlib
+
 from collections import deque
+from bisect import insort
 
 from .errors import DiscordException
 import websockets
@@ -46,7 +48,9 @@ import websockets
 from . import utils
 from .activity import CustomActivity
 from .speakingstate import SpeakingState
-from .errors import ConnectionClosed, InvalidArgument
+from .errors import ConnectionClosed, InvalidArgument, DiscordException
+
+from .rtp import RTPPacket, RTCPPacket, SilencePacket, FECPacket
 
 log = logging.getLogger(__name__)
 
