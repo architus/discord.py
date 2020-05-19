@@ -54,7 +54,8 @@ __all__ = [
     'ConditionalFilter',
     'TimedFilter',
     'UserFilter',
-    'SinkExit'
+    'SinkExit',
+    'WavFile'
 ]
 
 class SinkExit(DiscordException):
