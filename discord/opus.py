@@ -38,6 +38,7 @@ import sys
 import time
 import threading
 import zlib
+from collections import deque
 
 from .errors import DiscordException
 import websockets
