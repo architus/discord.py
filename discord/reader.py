@@ -32,6 +32,7 @@ import audioop
 import logging
 import threading
 import traceback
+from io import BytesIO
 
 from . import rtp
 from .utils import Defaultdict
@@ -74,6 +75,7 @@ class SinkExit(DiscordException):
     def __init__(self, *, drain=True, flush=False):
         self.kwargs = kwargs
 
+
 class AudioSink:
     def __del__(self):
         self.cleanup()
@@ -89,6 +91,7 @@ class AudioSink:
 
     def pack_data(self, data, user=None, packet=None):
         return VoiceData(data, user, packet) # is this even necessary?
+
 
 class WaveSink(AudioSink):
     def __init__(self, destination):
@@ -216,6 +219,8 @@ class WavFile(AudioSink):
             if len(c) < size:
                 c.append(b"\x00" * (size - len(c)))
             wav_data.append(b"".join(c))
+
+        self.channels = None
 
         # Header values that can't be hardcoded
         data_chunk_size = self.num_channels * len(wav_data[0])
