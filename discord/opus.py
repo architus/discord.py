@@ -919,7 +919,8 @@ class BufferedDecoder(threading.Thread):
     def stop(self, **kwargs):
         for decoder in tuple(self.decoders.values()):
             # decoder.stop(**kwargs)
-            decoder.reset()
+            with self._lock:
+                decoder.reset()
 
     def _initial_fill(self):
         # Fill a single buffer first then dispense into the actual buffers
@@ -977,7 +978,10 @@ class BufferedDecoder(threading.Thread):
             self.feed_rtp = normal_feed_rtp
 
     def decode(self, decoder):
-        data = next(decoder)
+        try:
+            data = next(decoder)
+        except StopIteration:
+            return
         if any(data):
             packet, pcm = data
             try:
