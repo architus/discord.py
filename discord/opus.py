@@ -708,6 +708,7 @@ class BufferedPacketDecoder(BasePacketDecoder):
         self._lock = threading.RLock()
 
         self._gen = None
+        self._stop_gen = threading.Event()
 
     def __iter__(self):
         if self._gen is None:
@@ -739,7 +740,7 @@ class BufferedPacketDecoder(BasePacketDecoder):
             self._last_seq = self._last_ts = 0
             self._buffer.clear()
             self._rtcp_buffer.clear()
-            self._gen.close()
+            self._stop_gen.set()
             self._gen = None
 
     def _push(self, item):
@@ -819,6 +820,8 @@ class BufferedPacketDecoder(BasePacketDecoder):
             yield None, None
 
         while True:
+            if self._stop_gen.is_set():
+                break
             packet, nextpacket = self._pop()
             self._last_ts = getattr(packet, 'timestamp', self._last_ts + Decoder.SAMPLES_PER_FRAME)
             self._last_seq += 1 # self._last_seq = packet.sequence?
@@ -998,15 +1001,16 @@ class BufferedDecoder(threading.Thread):
         while not self._end_thread.is_set():
             self._has_decoder.wait()
 
-            next_time, decoder = self.queue.popleft()
-            remaining = next_time - time.perf_counter()
+            if len(self.queue) > 0:
+                next_time, decoder = self.queue.popleft()
+                remaining = next_time - time.perf_counter()
 
-            if remaining >= 0:
-                bisect.insort(self.queue, (next_time, decoder))
-                time.sleep(max(0.002, remaining/2)) # sleep accuracy tm
-                continue
+                if remaining >= 0:
+                    bisect.insort(self.queue, (next_time, decoder))
+                    time.sleep(max(0.002, remaining/2)) # sleep accuracy tm
+                    continue
 
-            self.decode(decoder)
+                self.decode(decoder)
 
     def run(self):
         try:
