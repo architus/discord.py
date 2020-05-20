@@ -129,7 +129,7 @@ class WavFile(AudioSink):
     SubChunk2ID: data
     """
 
-    def __init__(self, f, user_list, event, bot_user):
+    def __init__(self, f, user_list, event, bot_user, excludes):
         """
         :param: f Where to write the wave file to. This should just be a BytesIO object.
         :param: user_list List of users in the voice channel to include in recording
@@ -143,6 +143,7 @@ class WavFile(AudioSink):
         self.num_channels = len(user_list)
         self.channels = [list() for _ in range(self.num_channels)]
         self.packet_count = 0
+        self.excludes = excludes
 
         # this is equivalent to one packet of silence
         self.silence = b"\x00" * 3840
@@ -159,6 +160,8 @@ class WavFile(AudioSink):
         if data.user == self.bot_user:
             # I don't think the bot actually ever sends voice data,
             # but just to make sure.
+            return
+        if data.user in self.excludes:
             return
         channel = -1
         for i, u in enumerate(self.user_list):
