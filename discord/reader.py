@@ -162,8 +162,9 @@ class WavFile(AudioSink):
             # I don't think the bot actually ever sends voice data,
             # but just to make sure.
             return
-        if data.user in self.excludes:
-            return
+        for u in self.excludes:
+            if u == data.user:
+                return
         channel = -1
         for i, u in enumerate(self.user_list):
             if u == data.user:
