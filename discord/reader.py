@@ -218,6 +218,9 @@ class WavFile(AudioSink):
         right place.
         """
 
+        if len(self.channels) == 0:
+            self.event.set()
+            return
         wav_data = []
         size = max([len(c) for c in self.channels])
         for c in self.channels:
