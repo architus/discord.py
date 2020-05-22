@@ -1002,9 +1002,9 @@ class BufferedDecoder(threading.Thread):
             self._has_decoder.wait()
 
             if len(self.queue) > 0:
-                print(f"Decoding SSRC: {decoder.ssrc}")
                 next_time, decoder = self.queue.popleft()
                 remaining = next_time - time.perf_counter()
+                print(f"Decoding SSRC: {decoder.ssrc}")
 
                 if remaining >= 0:
                     bisect.insort(self.queue, (next_time, decoder))
