@@ -193,7 +193,7 @@ class WavFile(AudioSink):
         # roughly once a second, see if any of the channels is falling far behind the
         # others. If they are, this means that person has exited the channel and their
         # audio needs to be caught up with the rest of the channels.
-        if self.packet_count > 10:
+        if self.packet_count > 3 * self.num_channels:
             self.packet_count = 0
             longest = max([len(c) for c in self.channels])
             for i in range(self.num_channels):
@@ -505,6 +505,7 @@ class AudioReader(threading.Thread):
                 if not rtp.is_rtcp(raw_data):
                     packet = rtp.decode(raw_data)
                     packet.decrypted_data = self.decrypt_rtp(packet)
+                    print(f"Packet from {self._get_user(packet)}")
                 else:
                     packet = rtp.decode(self.decrypt_rtcp(raw_data))
                     if not isinstance(packet, rtp.ReceiverReportPacket):
@@ -512,6 +513,7 @@ class AudioReader(threading.Thread):
 
                         # TODO: Fabricate and send SenderReports and see what happens
 
+                    print(f"Packet from {self._get_user(packet)}")
                     self.decoder.feed_rtcp(packet)
                     continue
 
