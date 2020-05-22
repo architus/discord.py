@@ -1011,6 +1011,7 @@ class BufferedDecoder(threading.Thread):
                     continue
 
                 self.decode(decoder)
+                print(f"Decoded SSRC: {decoder.SSRC}")
 
     def run(self):
         try:
