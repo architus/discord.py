@@ -513,7 +513,6 @@ class AudioReader(threading.Thread):
 
                         # TODO: Fabricate and send SenderReports and see what happens
 
-                    print(f"Packet from {self._get_user(packet)}")
                     self.decoder.feed_rtcp(packet)
                     continue
 
