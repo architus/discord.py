@@ -1002,6 +1002,7 @@ class BufferedDecoder(threading.Thread):
             self._has_decoder.wait()
 
             if len(self.queue) > 0:
+                print(f"Decoding SSRC: {decoder.ssrc}")
                 next_time, decoder = self.queue.popleft()
                 remaining = next_time - time.perf_counter()
 
@@ -1011,7 +1012,6 @@ class BufferedDecoder(threading.Thread):
                     continue
 
                 self.decode(decoder)
-                print(f"Decoded SSRC: {decoder.SSRC}")
 
     def run(self):
         try:
