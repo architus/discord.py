@@ -830,7 +830,7 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
         # hack #1
         # speaking needs to be set otherwise reconnecting makes you forget that the
         # bot is playing audio and you wont hear it until the bot sets speaking again
-        await self.speak()
+        await self.speak(SpeakingState.active())
 
         # hack #3:
         # you need to wait for some indeterminate amount of time before sending silence
@@ -841,7 +841,7 @@ class DiscordVoiceWebSocket(websockets.client.WebSocketClientProtocol):
         self._connection.send_audio_packet(b'\xF8\xFF\xFE', encode=False)
 
         # just so we don't have the speaking circle when we're not actually speaking
-        await self.speak(False)
+        await self.speak(SpeakingState.inactive())
 
     async def poll_event(self):
         try:
