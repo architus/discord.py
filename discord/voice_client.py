@@ -120,6 +120,8 @@ class VoiceClient:
         self.encoder = None
         self._ssrcs = Bidict()
 
+        self.sink = None
+
     warn_nacl = not has_nacl
     supported_modes = (
         'xsalsa20_poly1305_lite',
@@ -543,7 +545,7 @@ class VoiceClient:
         if self._reader is None:
             raise ValueError('Not receiving anything.')
 
-        self._reader._set_sink(sink)
+        self.sink = value
 
     def stop(self):
         """Stops playing and receiving audio."""
