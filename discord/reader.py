@@ -136,9 +136,10 @@ class TCPSink(AudioSink):
     def remove_ssrc(self, ssrc):
         data = bytearray(5)
         struct.pack_into(">BI", data, 0, ssrc)
+        self.connection.send(data)
 
     def cleanup(self):
-        self.connection.send([0x04])
+        self.connection.send(b"\x04"])
 
 
 # rename 'data' to 'payload'? or 'opus'? something else?
