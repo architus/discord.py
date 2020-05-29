@@ -139,7 +139,7 @@ class TCPSink(AudioSink):
         self.connection.send(data)
 
     def cleanup(self):
-        self.connection.send(b"\x04"])
+        self.connection.send(b"\x04")
 
 
 # rename 'data' to 'payload'? or 'opus'? something else?
