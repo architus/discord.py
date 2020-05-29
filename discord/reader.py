@@ -299,6 +299,8 @@ class AudioReader(threading.Thread):
                     packet = rtp.decode(raw_data)
                     packet.decrypted_data = self.decrypt_rtp(packet)
                     print(f"Packet from {self._get_user(packet)}")
+                else:
+                    continue
 
             except CryptoError:
                 log.exception("CryptoError decoding packet %s", packet)
