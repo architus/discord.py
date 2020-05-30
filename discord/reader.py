@@ -121,7 +121,7 @@ class TCPSink(AudioSink):
                      'payload', 'sequence', 'timestamp', 'ssrc', 'csrcs',
                      'header', 'data', 'decrypted_data', 'extension')
         """
-        data = bytearray(13)
+        data = bytearray(15)
         size = len(packet.decrypted_data)
         struct.pack_into(">BHBBHII", data, 0, 0x00, size, 0x80, 0x78, packet.sequence,
                          packet.timestamp, packet.ssrc)
