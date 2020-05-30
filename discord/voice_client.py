@@ -367,12 +367,17 @@ class VoiceClient:
         """Removes a user_id<->ssrc mapping.  Either one can be used as the key."""
 
         thing = ssrc or user_id
+        if ssrc:
+            have_ssrc = True
         if not thing:
             raise TypeError("must provide at least one argument")
 
         other_thing = self._ssrcs.pop(thing, None)
         if self._reader:
-            self._reader._ssrc_removed(ssrc or other_thing)
+            if hav_ssrc:
+                self._reader._ssrc_removed(thing, other_thing)
+            else:
+                self._reader._ssrc_removed(other_thing, thing)
 
     def _get_ssrc_mapping(self, *, ssrc=None, user_id=None):
         """Returns a (ssrc, user_id) tuple from the given input.  At least one argument is required."""
