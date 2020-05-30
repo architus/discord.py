@@ -130,7 +130,7 @@ class TCPSink(AudioSink):
 
     def add_ssrc(self, ssrc, uid):
         data = bytearray(15)
-        struct.pack_into(">BHIQ", data, 0, 0x01, ssrc, uid)
+        struct.pack_into(">BIQ", data, 0, 0x01, ssrc, uid)
         self.connection.send(data)
 
     def remove_ssrc(self, ssrc):
