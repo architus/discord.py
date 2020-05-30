@@ -138,9 +138,6 @@ class TCPSink(AudioSink):
         struct.pack_into(">BI", data, 0, ssrc)
         self.connection.send(data)
 
-    def cleanup(self):
-        self.connection.send(b"\x04")
-
 
 # rename 'data' to 'payload'? or 'opus'? something else?
 class VoiceData:
