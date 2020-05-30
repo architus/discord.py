@@ -357,6 +357,7 @@ class VoiceClient:
 
         I think?  Did I write it to work like that?
         """
+        print("Adding ssrc mapping")
         self._ssrcs[user_id] = ssrc
         if self._reader:
             self._reader.add_ssrc(ssrc, user_id)

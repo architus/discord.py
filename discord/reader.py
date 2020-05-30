@@ -124,7 +124,6 @@ class TCPSink(AudioSink):
         data = bytearray(13)
         struct.pack_into(">BBBHII", data, 0, 0x00, 0x80, 0x78, packet.sequence,
                          packet.timestamp, packet.ssrc)
-        print(f"sending packet with type: {data[2]}")
         for byte in packet.decrypted_data:
             data.append(byte)
         self.connection.send(data)
@@ -297,7 +296,6 @@ class AudioReader(threading.Thread):
                 if not rtp.is_rtcp(raw_data):
                     packet = rtp.decode(raw_data)
                     packet.decrypted_data = self.decrypt_rtp(packet)
-                    print(f"Packet from {self._get_user(packet)}")
                 else:
                     continue
 
