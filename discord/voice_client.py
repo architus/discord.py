@@ -361,6 +361,7 @@ class VoiceClient:
         self._ssrcs[user_id] = ssrc
         if self._reader:
             self._reader._ssrc_added(ssrc, user_id)
+        print("Added ssrc")
 
     def _remove_ssrc(self, *, ssrc=None, user_id=None):
         """Removes a user_id<->ssrc mapping.  Either one can be used as the key."""
