@@ -122,7 +122,7 @@ class TCPSink(AudioSink):
                      'header', 'data', 'decrypted_data', 'extension')
         """
         data = bytearray(13)
-        struct.pack_into(">BBBHII", data, 0, 0x00, 0x80, 0x78, packet.sequence,
+        struct.pack_into(">BBBHII", data, 0, 0x00, 0x78, 0x80, packet.sequence,
                          packet.timestamp, packet.ssrc)
         print(f"sending packet with type: {data[0]}")
         for byte in packet.decrypted_data:
