@@ -124,6 +124,7 @@ class TCPSink(AudioSink):
         data = bytearray(13)
         struct.pack_into(">BBBHII", data, 0, 0x00, 0x80, 0x78, packet.sequence,
                          packet.timestamp, packet.ssrc)
+        print(f"sending packet with type: {data[0]}")
         for byte in packet.decrypted_data:
             data.append(byte)
         self.connection.send(data)
@@ -135,7 +136,7 @@ class TCPSink(AudioSink):
 
     def remove_ssrc(self, ssrc):
         data = bytearray(5)
-        struct.pack_into(">BI", data, 0, ssrc)
+        struct.pack_into(">BI", data, 0, 0x02, ssrc)
         self.connection.send(data)
 
 
