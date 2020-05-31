@@ -115,28 +115,23 @@ class TCPSink(AudioSink):
     def __init__(self, s):
         self.connection = s
 
-    def write(self, packet):
+    def write(self, packet, uid):
         """
         __slots__ = ('version', 'padding', 'extended', 'cc', 'marker',
                      'payload', 'sequence', 'timestamp', 'ssrc', 'csrcs',
                      'header', 'data', 'decrypted_data', 'extension')
         """
-        data = bytearray(15)
+        data = bytearray(13)
+        print(f"Decrypted stuff type {type(packet.decrypted_data)}")
         size = len(packet.decrypted_data)
-        struct.pack_into(">BHBBHII", data, 0, 0x00, size, 0x80, 0x78, packet.sequence,
-                         packet.timestamp, packet.ssrc)
+        struct.pack_into(">BHQH", 0x00, size, uid, sequence)
         for byte in packet.decrypted_data:
             data.append(byte)
         self.connection.send(data)
 
-    def add_ssrc(self, ssrc, uid):
+    def add_ssrc(self, uid):
         data = bytearray(15)
-        struct.pack_into(">BIQ", data, 0, 0x01, ssrc, uid)
-        self.connection.send(data)
-
-    def remove_ssrc(self, ssrc):
-        data = bytearray(5)
-        struct.pack_into(">BI", data, 0, 0x02, ssrc)
+        struct.pack_into(">BQ", data, 0, 0x01, uid)
         self.connection.send(data)
 
 
@@ -241,7 +236,7 @@ class AudioReader(threading.Thread):
         Send along info to sink.
         """
         if self.sink:
-            self.sink.add_ssrc(ssrc, uid)
+            self.sink.add_ssrc(uid)
 
     def _ssrc_removed(self, ssrc):
         # An user has disconnected but there still may be
@@ -313,7 +308,8 @@ class AudioReader(threading.Thread):
                     log.debug("Received packet for unknown ssrc %s",
                               packet.ssrc)
 
-                self.sink.write(packet)
+                uid = self.client._get_ssrc_mapping(ssrc=packet.ssrc)
+                self.sink.write(packet, uid)
 
     def stop(self):
         self._end.set()
