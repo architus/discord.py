@@ -124,7 +124,7 @@ class TCPSink(AudioSink):
         data = bytearray(13)
         print(f"Decrypted stuff type {type(packet.decrypted_data)}")
         size = len(packet.decrypted_data)
-        struct.pack_into(">BHQH", 0x00, size, uid, packet.sequence)
+        struct.pack_into(">BHQH", data, 0, 0x00, size, uid, packet.sequence)
         for byte in packet.decrypted_data:
             data.append(byte)
         self.connection.send(data)
