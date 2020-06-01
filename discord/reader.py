@@ -292,11 +292,9 @@ class AudioReader(threading.Thread):
 
             try:
                 packet = None
-                print("Got voice packet")
                 if not rtp.is_rtcp(raw_data):
                     packet = rtp.decode(raw_data)
                     packet.decrypted_data = self.decrypt_rtp(packet)
-                    print("Decrypted voice packet")
                 else:
                     continue
 
