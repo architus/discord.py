@@ -122,7 +122,7 @@ class TCPSink(AudioSink):
                      'header', 'data', 'decrypted_data', 'extension')
         """
         data = bytearray(13)
-        print(f"Decrypted stuff type {type(packet.decrypted_data)}")
+        print(f"UID: {type(uid)}")
         size = len(packet.decrypted_data)
         struct.pack_into(">BHQH", data, 0, 0x00, size, uid, packet.sequence)
         for byte in packet.decrypted_data:
@@ -289,6 +289,7 @@ class AudioReader(threading.Thread):
 
             try:
                 packet = None
+                print("Got voice packet")
                 if not rtp.is_rtcp(raw_data):
                     packet = rtp.decode(raw_data)
                     packet.decrypted_data = self.decrypt_rtp(packet)
