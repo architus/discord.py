@@ -314,7 +314,8 @@ class AudioReader(threading.Thread):
                               packet.ssrc)
 
                 uid = self.client._get_ssrc_mapping(ssrc=packet.ssrc)
-                self.sink.write(packet, uid)
+                if uid[1] is not None:
+                    self.sink.write(packet, uid)
 
     def stop(self):
         self._end.set()
