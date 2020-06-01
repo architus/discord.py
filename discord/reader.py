@@ -130,7 +130,7 @@ class TCPSink(AudioSink):
         struct.pack_into(">HQH", self.data, 1, size, uid[1], packet.sequence)
         for i, byte in enumerate(packet.decrypted_data):
             self.data[13+i] = byte
-        assert(len(data) == 4096)
+        assert(len(self.data) == 4096)
         self.connection.send(self.data)
 
     def add_ssrc(self, uid):
