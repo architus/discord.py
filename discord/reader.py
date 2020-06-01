@@ -122,7 +122,7 @@ class TCPSink(AudioSink):
                      'header', 'data', 'decrypted_data', 'extension')
         """
         data = bytearray(13)
-        print(f"UID: {type(uid)}")
+        print(f"UID: {uid}")
         size = len(packet.decrypted_data)
         struct.pack_into(">BHQH", data, 0, 0x00, size, uid, packet.sequence)
         for byte in packet.decrypted_data:
