@@ -115,7 +115,7 @@ class TCPSink(AudioSink):
     def __init__(self, s):
         self.connection = s
         ssrc_template = bytearray(4096)
-        ssrc_templae[0] = 0x01
+        ssrc_template[0] = 0x01
         self.template = ssrc_template
 
         self.data = bytearray(4096)
@@ -126,15 +126,14 @@ class TCPSink(AudioSink):
                      'payload', 'sequence', 'timestamp', 'ssrc', 'csrcs',
                      'header', 'data', 'decrypted_data', 'extension')
         """
-        data = bytearray(13)
         size = len(packet.decrypted_data)
         struct.pack_into(">HQH", self.data, 1, size, uid[1], packet.sequence)
         for i, byte in enumerate(packet.decrypted_data):
-            data[13+i] = byte
-        self.connection.send(data)
+            self.data[13+i] = byte
+        assert(len(data) == 4096)
+        self.connection.send(self.data)
 
     def add_ssrc(self, uid):
-        data = bytearray(15)
         struct.pack_into(">Q", self.template, 1, uid)
         self.connection.send(self.template)
 
