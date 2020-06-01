@@ -114,6 +114,11 @@ class TCPSink(AudioSink):
 
     def __init__(self, s):
         self.connection = s
+        ssrc_template = bytearray(4096)
+        ssrc_templae[0] = 0x01
+        self.template = ssrc_template
+
+        self.data = bytearray(4096)
 
     def write(self, packet, uid):
         """
@@ -123,19 +128,15 @@ class TCPSink(AudioSink):
         """
         data = bytearray(13)
         size = len(packet.decrypted_data)
-        print("Writing")
-        print(f"{uid}: {type(uid)}")
-        print(f"{uid[0]}: {type(uid)}")
-        print(f"{packet.sequence}: {type(packet.sequence)}")
-        struct.pack_into(">BHQH", data, 0, 0x00, size, uid[1], packet.sequence)
-        for byte in packet.decrypted_data:
-            data.append(byte)
+        struct.pack_into(">HQH", self.data, 1, size, uid[1], packet.sequence)
+        for i, byte in enumerate(packet.decrypted_data):
+            data[13+i] = byte
         self.connection.send(data)
 
     def add_ssrc(self, uid):
         data = bytearray(15)
-        struct.pack_into(">BQ", data, 0, 0x01, uid)
-        self.connection.send(data)
+        struct.pack_into(">Q", self.template, 1, uid)
+        self.connection.send(self.template)
 
 
 # rename 'data' to 'payload'? or 'opus'? something else?
