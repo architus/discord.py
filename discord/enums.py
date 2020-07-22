@@ -49,6 +49,8 @@ __all__ = (
     'TeamMembershipState',
     'Theme',
     'WebhookType',
+    'ExpireBehaviour',
+    'ExpireBehavior'
 )
 
 def _create_value_cls(name):
@@ -399,6 +401,9 @@ class UserFlags(Enum):
     early_supporter = 512
     team_user = 1024
     system = 4096
+    bug_hunter_level_2 = 16384
+    verified_bot = 65536
+    verified_bot_developer = 131072
 
 class ActivityType(Enum):
     unknown = -1
@@ -427,6 +432,12 @@ class TeamMembershipState(Enum):
 class WebhookType(Enum):
     incoming = 1
     channel_follower = 2
+
+class ExpireBehaviour(Enum):
+    remove_role = 0
+    kick = 1
+
+ExpireBehavior = ExpireBehaviour
 
 def try_enum(cls, val):
     """A function that tries to turn the value into enum ``cls``.
