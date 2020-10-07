@@ -216,7 +216,13 @@ class Cog(metaclass=CogMeta):
             return cleaned
 
     def walk_commands(self):
-        """An iterator that recursively walks through this cog's commands and subcommands."""
+        """An iterator that recursively walks through this cog's commands and subcommands.
+
+        Yields
+        ------
+        Union[:class:`.Command`, :class:`.Group`]
+            A command or group from the cog.
+        """
         from .core import GroupMixin
         for command in self.__cog_commands__:
             if command.parent is None:
@@ -385,7 +391,7 @@ class Cog(metaclass=CogMeta):
                 except Exception as e:
                     # undo our additions
                     for to_undo in self.__cog_commands__[:index]:
-                        bot.remove_command(to_undo)
+                        bot.remove_command(to_undo.name)
                     raise e
 
         # check if we're overriding the default

@@ -50,7 +50,7 @@ __all__ = (
     'Theme',
     'WebhookType',
     'ExpireBehaviour',
-    'ExpireBehavior'
+    'ExpireBehavior',
 )
 
 def _create_value_cls(name):
@@ -192,6 +192,7 @@ class VoiceRegion(Enum):
     russia        = 'russia'
     japan         = 'japan'
     southafrica   = 'southafrica'
+    south_korea   = 'south-korea'
     india         = 'india'
     europe        = 'europe'
     dubai         = 'dubai'
@@ -395,12 +396,15 @@ class UserFlags(Enum):
     partner = 2
     hypesquad = 4
     bug_hunter = 8
+    mfa_sms = 16
+    premium_promo_dismissed = 32
     hypesquad_bravery = 64
     hypesquad_brilliance = 128
     hypesquad_balance = 256
     early_supporter = 512
     team_user = 1024
     system = 4096
+    has_unread_urgent_messages = 8192
     bug_hunter_level_2 = 16384
     verified_bot = 65536
     verified_bot_developer = 131072
@@ -412,6 +416,7 @@ class ActivityType(Enum):
     listening = 2
     watching = 3
     custom = 4
+    competing = 5
 
     def __int__(self):
         return self.value

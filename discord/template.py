@@ -24,12 +24,12 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from .utils import parse_time, _get_as_snowflake
+from .utils import parse_time, _get_as_snowflake, _bytes_to_base64_data
 from .enums import VoiceRegion
 from .guild import Guild
 
 __all__ = (
-    'Template'
+    'Template',
 )
 
 class _FriendlyHttpAttributeErrorHelper:
@@ -163,4 +163,4 @@ class Template:
             region = region.value
 
         data = await self._state.http.create_from_template(self.code, name, region, icon)
-        return Guild(data=data, state=self._sate)
+        return Guild(data=data, state=self._state)

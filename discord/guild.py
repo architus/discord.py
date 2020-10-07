@@ -105,6 +105,10 @@ class Guild(Hashable):
         The maximum amount of presences for the guild.
     max_members: Optional[:class:`int`]
         The maximum amount of members for the guild.
+
+        .. note::
+
+            This attribute is only available via :meth:`.Client.fetch_guild`.
     max_video_channel_users: Optional[:class:`int`]
         The maximum amount of users in a video channel.
 
@@ -134,6 +138,7 @@ class Guild(Hashable):
         - ``MORE_EMOJI``: Guild is allowed to have more than 50 custom emoji.
         - ``DISCOVERABLE``: Guild shows up in Server Discovery.
         - ``FEATURABLE``: Guild is able to be featured in Server Discovery.
+        - ``COMMUNITY``: Guild is a community server.
         - ``COMMERCE``: Guild can sell things using store channels.
         - ``PUBLIC``: Guild is a public guild.
         - ``NEWS``: Guild can create news channels.
@@ -300,9 +305,13 @@ class Guild(Hashable):
         self._rules_channel_id = utils._get_as_snowflake(guild, 'rules_channel_id')
         self._public_updates_channel_id = utils._get_as_snowflake(guild, 'public_updates_channel_id')
 
+        cache_online_members = self._state._member_cache_flags.online
+        cache_joined = self._state._member_cache_flags.joined
+        self_id = self._state.self_id
         for mdata in guild.get('members', []):
             member = Member(data=mdata, guild=self, state=state)
-            self._add_member(member)
+            if cache_joined or (cache_online_members and member.raw_status != 'offline') or member.id == self_id:
+                self._add_member(member)
 
         self._sync(guild)
         self._large = None if member_count is None else self._member_count >= 250
@@ -372,7 +381,7 @@ class Guild(Hashable):
 
     @property
     def voice_client(self):
-        """Optional[:class:`VoiceClient`]: Returns the :class:`VoiceClient` associated with this guild, if any."""
+        """Optional[:class:`VoiceProtocol`]: Returns the :class:`VoiceProtocol` associated with this guild, if any."""
         return self._state._get_voice_client(self.id)
 
     @property
@@ -411,7 +420,7 @@ class Guild(Hashable):
         grouped = {}
         for channel in self._channels.values():
             if isinstance(channel, CategoryChannel):
-                grouped[channel.id] = []
+                grouped.setdefault(channel.id, [])
                 continue
 
             try:
@@ -697,7 +706,14 @@ class Guild(Hashable):
 
     @property
     def member_count(self):
-        """:class:`int`: Returns the true member count regardless of it being loaded fully or not."""
+        """:class:`int`: Returns the true member count regardless of it being loaded fully or not.
+
+        .. warning::
+
+            Due to a Discord limitation, in order for this attribute to remain up-to-date and
+            accurate, it requires :attr:`Intents.members` to be specified.
+
+        """
         return self._member_count
 
     @property
@@ -906,6 +922,15 @@ class Guild(Hashable):
         user_limit: :class:`int`
             The channel's limit for number of members that can be in a voice channel.
 
+        Raises
+        ------
+        Forbidden
+            You do not have the proper permissions to create this channel.
+        HTTPException
+            Creating the channel failed.
+        InvalidArgument
+            The permission overwrite information is not in proper form.
+
         Returns
         -------
         :class:`VoiceChannel`
@@ -927,6 +952,15 @@ class Guild(Hashable):
 
             The ``category`` parameter is not supported in this function since categories
             cannot have categories.
+
+        Raises
+        ------
+        Forbidden
+            You do not have the proper permissions to create this channel.
+        HTTPException
+            Creating the channel failed.
+        InvalidArgument
+            The permission overwrite information is not in proper form.
 
         Returns
         -------
@@ -1724,7 +1758,7 @@ class Guild(Hashable):
 
     async def edit_role_positions(self, positions, *, reason=None):
         """|coro|
-        
+
         Bulk edits a list of :class:`Role` in the guild.
 
         You must have the :attr:`~Permissions.manage_roles` permission to
@@ -1961,7 +1995,7 @@ class Guild(Hashable):
             Retrieve entries after this date or entry.
             If a date is provided it must be a timezone-naive datetime representing UTC time.
         oldest_first: :class:`bool`
-            If set to ``True``, return entries in oldest->newest order. Defaults to True if
+            If set to ``True``, return entries in oldest->newest order. Defaults to ``True`` if
             ``after`` is specified, otherwise ``False``.
         user: :class:`abc.Snowflake`
             The moderator to filter entries from.
@@ -2014,6 +2048,32 @@ class Guild(Hashable):
 
         return Widget(state=self._state, data=data)
 
+    async def chunk(self, *, cache=True):
+        """|coro|
+
+        Requests all members that belong to this guild. In order to use this,
+        :meth:`Intents.members` must be enabled.
+
+        This is a websocket operation and can be slow.
+
+        .. versionadded:: 1.5
+
+        Parameters
+        -----------
+        cache: :class:`bool`
+            Whether to cache the members as well.
+
+        Raises
+        -------
+        ClientException
+            The members intent is not enabled.
+        """
+
+        if not self._state._intents.members:
+            raise ClientException('Intents.members must be enabled to use this.')
+
+        return await self._state.chunk_guild(self, cache=cache)
+
     async def query_members(self, query=None, *, limit=5, user_ids=None, cache=True):
         """|coro|
 
@@ -2022,25 +2082,19 @@ class Guild(Hashable):
 
         This is a websocket operation and can be slow.
 
-        .. warning::
-
-            Most bots do not need to use this. It's mainly a helper
-            for bots who have disabled ``guild_subscriptions``.
-
         .. versionadded:: 1.3
 
         Parameters
         -----------
-        query: :class:`str`
-            The string that the username's start with. An empty string
-            requests all members.
+        query: Optional[:class:`str`]
+            The string that the username's start with.
         limit: :class:`int`
             The maximum number of members to send back. This must be
-            a number between 1 and 1000.
+            a number between 5 and 100.
         cache: :class:`bool`
             Whether to cache the members internally. This makes operations
             such as :meth:`get_member` work for those that matched.
-        user_ids: List[:class:`int`]
+        user_ids: Optional[List[:class:`int`]]
             List of user IDs to search for. If the user ID is not in the guild then it won't be returned.
 
             .. versionadded:: 1.4
@@ -2050,17 +2104,44 @@ class Guild(Hashable):
         -------
         asyncio.TimeoutError
             The query timed out waiting for the members.
+        ValueError
+            Invalid parameters were passed to the function
 
         Returns
         --------
         List[:class:`Member`]
             The list of members that have matched the query.
         """
+
+        if query is None:
+            if query == '':
+                raise ValueError('Cannot pass empty query string.')
+
+            if user_ids is None:
+                raise ValueError('Must pass either query or user_ids')
+
         if user_ids is not None and query is not None:
-            raise TypeError('Cannot pass both query and user_ids')
+            raise ValueError('Cannot pass both query and user_ids')
 
-        if user_ids is None and query is None:
-            raise TypeError('Must pass either query or user_ids')
-
-        limit = limit or 5
+        limit = min(100, limit or 5)
         return await self._state.query_members(self, query=query, limit=limit, user_ids=user_ids, cache=cache)
+
+    async def change_voice_state(self, *, channel, self_mute=False, self_deaf=False):
+        """|coro|
+
+        Changes client's voice state in the guild.
+
+        .. versionadded:: 1.4
+
+        Parameters
+        -----------
+        channel: Optional[:class:`VoiceChannel`]
+            Channel the client wants to join. Use ``None`` to disconnect.
+        self_mute: :class:`bool`
+            Indicates if the client should be self-muted.
+        self_deaf: :class:`bool`
+            Indicates if the client should be self-deafened.
+        """
+        ws = self._state._get_websocket(self.id)
+        channel_id = channel.id if channel else None
+        await ws.voice_state(self.id, channel_id, self_mute, self_deaf)

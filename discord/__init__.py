@@ -15,7 +15,9 @@ __title__ = 'discord'
 __author__ = 'Rapptz'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015-2020 Rapptz'
-__version__ = '1.4.0a'
+__version__ = '1.5.0'
+
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
 from collections import namedtuple
 import logging
@@ -31,7 +33,7 @@ from .guild import Guild
 from .flags import *
 from .relationship import Relationship
 from .member import Member, VoiceState
-from .message import Message, Attachment
+from .message import Message, MessageReference, Attachment
 from .asset import Asset
 from .errors import *
 from .calls import CallMessage, GroupCall
@@ -49,11 +51,11 @@ from . import utils, opus, abc, rtp
 from .enums import *
 from .embeds import Embed
 from .mentions import AllowedMentions
-from .shard import AutoShardedClient
+from .shard import AutoShardedClient, ShardInfo
 from .player import *
 from .reader import *
 from .webhook import *
-from .voice_client import VoiceClient
+from .voice_client import VoiceClient, VoiceProtocol
 from .audit_logs import AuditLogChanges, AuditLogEntry, AuditLogDiff
 from .raw_models import *
 from .team import *
@@ -61,7 +63,7 @@ from .speakingstate import SpeakingState
 
 VersionInfo = namedtuple('VersionInfo', 'major minor micro releaselevel serial')
 
-version_info = VersionInfo(major=1, minor=4, micro=0, releaselevel='alpha', serial=0)
+version_info = VersionInfo(major=1, minor=5, micro=0, releaselevel='final', serial=0)
 
 try:
     from logging import NullHandler
